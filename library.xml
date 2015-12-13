@@ -1,0 +1,899 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<library>
+<!-- 	Title: Fabula Project Builder -->
+<!-- 	Author: Roman Movchan -->
+<!-- 	Created: 2015-06-15 -->
+	<typedef name="table-data">
+		<com>
+			<prop name="tag">
+				<string/>
+			</prop>
+			<prop name="pagesize">
+				<integer/>
+			</prop>
+			<prop name="header">
+				<arrayof>
+					<string/>
+				</arrayof>
+			</prop>
+			<prop name="rowcount">
+				<integer/>
+			</prop>
+			<prop name="rowdata">
+				<function>
+					<integer/>
+					<com>
+						<prop name="class">
+							<var>
+								<prop name="default"/>
+								<prop name="active"/>
+								<prop name="success"/>
+								<prop name="warning"/>
+								<prop name="danger"/>
+							</var>
+						</prop>
+						<prop name="values">
+							<arrayof>
+								<string/>
+							</arrayof>
+						</prop>
+					</com>
+				</function>
+			</prop>
+		</com>
+	</typedef>
+	<import library="http://fabwebtools.com/backend/1/getsource.php?username=rmovchan&amp;project=common&amp;version=2" id="common">
+		<applet name="code-example"/>
+		<applet name="error-box"/>
+		<applet name="notify-box"/>
+		<applet name="wysiwyg-html-editor"/>
+		<applet name="text-editor"/>
+		<channel name="errors">
+			<string/>
+		</channel>
+		<channel name="clear">
+			<string/>
+		</channel>
+	</import>
+	<import library="http://fabwebtools.com/projects/rmovchan/docviewer/v2/library.xml" id="docviewer">
+		<applet name="document-viewer"/>
+	</import>
+	<import library="http://fabwebtools.com/backend/1/getsource.php?username=rmovchan&amp;project=tableviewer&amp;version=4" id="tableviewer">
+		<applet name="table" />
+		<channel name="table-data">
+			<type name="table-data"/>
+		</channel>
+	</import>
+	<typedef name="ProjectInfo">
+		<com>
+			<prop name="projectname">
+				<string/>
+			</prop>
+			<prop name="version">
+				<integer/>
+			</prop>
+			<prop name="title">
+				<string/>
+			</prop>
+			<prop name="description">
+				<string/>
+			</prop>
+			<prop name="category">
+				<string/>
+			</prop>
+			<prop name="forumid">
+				<string/>
+			</prop>
+			<prop name="access">
+				<var>
+					<prop name="public"/>
+					<prop name="private"/>
+				</var>
+			</prop>
+		</com>
+	</typedef>
+	<typedef name="Size">
+		<var>
+			<prop name="mobile"/>
+			<prop name="tablet"/>
+			<prop name="desktop"/>
+		</var>
+	</typedef>
+	<typedef name="details">
+		<com>
+			<prop name="projectname">
+				<string/>
+			</prop>
+			<prop name="version">
+				<integer/>
+			</prop>
+			<prop name="projecttitle">
+				<string/>
+			</prop>
+			<prop name="description">
+				<string/>
+			</prop>
+			<prop name="category">
+				<string/>
+			</prop>
+		</com>
+	</typedef>
+	<channel name="history-refresh">
+		<com/>
+	</channel>
+	<channel name="status-message">
+		<string/>
+	</channel>
+	<channel name="report">
+		<string/>
+	</channel>
+	<channel name="parameters">
+		<string/>
+	</channel>
+	<channel name="set-size">
+		<type name="Size"/>
+	</channel>
+	<channel name="refresh">
+		<com/>
+	</channel>
+	<channel name="project-info">
+		<type name="ProjectInfo"/>
+	</channel>
+	<common>
+		<unwrap>core</unwrap>
+		<unwrap>string</unwrap>
+		<unwrap>format</unwrap>
+		<unwrap>xml</unwrap>
+		<def var="creator">location.params@'creator'</def>
+		<def var="username">location.params@'username'</def>
+		<def var="project">location.params@'project'</def>
+		<def var="version">location.params@'version'</def>
+		<def var="getdetails">
+			<get>
+				<text>
+					http://fabwebtools.com/backend/1/getprojdetails.php?username=[%username%][%amp%]project=[%project%][%amp%]version=[%version%]
+				</text>
+				<success result="result">
+					<calc>
+						<send channel="project-info">{projectname: project, version: strToInt(version), title: title, description: description, category: category, forumid: forumid, access: access}</send>
+						<where>
+							<all>
+								<def var="root">parseText(result)</def>
+								<def var="title">getText(findChild({node: root, name: "title"}))</def>
+								<def var="description">getText(findChild({node: root, name: "description"}))</def>
+								<def var="category">getText(findChild({node: root, name: "category"}))</def>
+								<def var="forumid">getText(findChild({node: root, name: "forumid"}))</def>
+								<def var="access">
+									<calc>acc
+										<where>
+											<any>
+												<all>
+													<is>value = 'public'</is>
+													<def var="acc">{public:}</def>
+												</all>
+												<all>
+													<is>value = 'private'</is>
+													<def var="acc">{private:}</def>
+												</all>
+											</any>
+										</where>
+										<where>
+											<def var="value">getText(findChild({node: root, name: 'access'}))</def>
+										</where>
+									</calc>
+								</def>
+							</all>
+						</where>
+					</calc>
+				</success>
+				<error message="message">
+					<send channel="common::errors">message</send>
+				</error>
+			</get>
+		</def>
+		<def var="gethistory">
+			<get>
+				<text>
+					http://fabwebtools.com/backend/1/getrevisions.php?username=[%username%][%amp%]project=[%project%][%amp%]version=[%version%]
+				</text>
+				<success result="result">
+					<send channel="tableviewer::table-data">
+						<calc>{tag: "revisions", header: header, pagesize: 10, rowcount: nodes#, rowdata: rows}
+							<where>
+								<all>
+									<def var="input">parseText(result)</def>
+									<is>toLowerCase(getName(input)) = "revisions"</is>
+									<def var="nodes">
+										getChildren(input)
+									</def>
+									<def var="header">
+										<list>
+											<calc>"#"</calc>
+											<calc>"Created"</calc>
+											<calc>"User"</calc>
+											<calc>"Comment"</calc>
+											<calc>"Actions"</calc>
+										</list>
+									</def>
+									<def var="rows">
+										<closure>
+											<arg name="row">
+												<integer/>
+											</arg>
+											<return>
+												<calc>{class:{default:}, values: values}
+													<where>
+														<def var="values">
+															<list>
+																<text>[%number%]</text>
+																<text>[%dateTimeToStr(strToTime(getText(findChild({node: revision, name: 'datetime'}))))%]</text>
+																<text>[%getText(findChild({node: revision, name: 'username'}))%]</text>
+																<text>[%comment%]</text>
+																<text>[%actions%]</text>
+															</list>
+														</def>
+													</where>
+													<where>
+														<all>
+															<any>
+																<def var="comment">
+																	getText(findChild({node: revision, name: 'comment'}))
+																</def>
+																<def var="comment">
+																	""
+																</def>
+															</any>
+															<def var="number">getText(findChild({node: revision, name: 'revision'}))</def>
+															<def var="size">strToInt(getText(findChild({node: revision, name: 'size'})))</def>
+															<any>
+																<all>
+																	<is>size 'gt' 0</is>
+																	<def var="actions">
+																		<text>
+																			<a href="http://fabwebtools.com/backend/1/getrevision.php?username=[%username%][%amp%]project=[%project%][%amp%]version=[%version%][%amp%]revision=[%number%]" target="_blank" data-toggle="tooltip" data-placement="top" title="Open">
+																				<span class="glyphicons glyphicons-new-window-alt"></span>
+																			</a>
+																			<!-- 															<a href="#" data-toggle="tooltip" data-placement="top" title="Rollback" onclick="return false;">
+		<span class="glyphicons glyphicons-sorting"></span>
+		</a> -->
+																		</text>
+																	</def>
+																</all>
+																<def var="actions">''</def>
+															</any>
+														</all>
+													</where>
+													<where>
+														<all>
+															<def var="revision">
+																nodes[row]
+															</def>
+														</all>
+													</where>
+												</calc>
+											</return>
+										</closure>
+									</def>
+								</all>
+							</where>
+						</calc>
+					</send>
+				</success>
+				<error message="message">
+					<send channel="common::errors">message</send>
+				</error>
+			</get>
+		</def>
+	</common>
+	<applet name="main">
+		<model state="state">
+			<com/>
+		</model>
+		<view>
+			<text>
+				<div class="container-fluid">
+					<img src="http://fabwebtools.com/resources/rmovchan/fabwebtools9.png" height="76" width="440" class="logo" />
+					<div class="applet-donate right" id="donate"> </div>
+					<br/>
+					<div class="page-title">Fabula Project Builder</div>
+<!-- 					<div class="applet-play right" id="play"> </div> -->
+					<br/>
+					<div role="tabpanel">
+						<ul class="nav nav-tabs" role="tablist">
+							<li role="presentation" class="active"><a href="#tab-edit" aria-controls="edit" role="tab" data-toggle="tab">Code</a></li>
+							<li role="presentation"><a href="#tab-setup" aria-controls="setup" role="tab" data-toggle="tab">Details</a></li>
+							<li role="presentation"><a href="#tab-test" aria-controls="test" role="tab" data-toggle="tab">Test</a></li>
+							<li role="presentation"><a href="#tab-history" aria-controls="history" role="tab" data-toggle="tab">History</a></li>
+<!-- 							<li role="presentation"><a href="#tab-feedback" aria-controls="feedback" role="tab" data-toggle="tab">Forum</a></li> -->
+							<li role="presentation"><a href="#tab-reference" aria-controls="reference" role="tab" data-toggle="tab">Reference</a></li>
+							<li role="presentation"><a href="#tab-help" aria-controls="help" role="tab" data-toggle="tab">Help</a></li>
+						</ul>
+						<div class="powered">Powered by  Fabula</div>
+						<div class="tab-content">
+							<div role="tabpanel" class="tab-pane fade in active" id="tab-edit">
+								<div class="applet-code-editor"> </div>
+							</div>
+							<div role="tabpanel" class="tab-pane fade" id="tab-setup"> 
+								<br/>
+								<div class="[%appletclass('details-form')%]">Project details</div>
+							</div>
+							<div role="tabpanel" class="tab-pane fade" id="tab-test"> 
+								<br/>
+								<div class="applet-test" id="test"> </div>
+							</div>
+							<div role="tabpanel" class="tab-pane fade" id="tab-history"> 
+								<br/>
+								<div class="applet-history" id="history"> </div>
+							</div>
+<!-- 							<div role="tabpanel" class="tab-pane fade" id="tab-feedback"> 
+								<div class="[%appletclass('feedback')%]" id="feedback"> </div>
+							</div> -->
+							<div role="tabpanel" class="tab-pane fade" id="tab-reference"> 
+								<div class="[%appletclass('docviewer::document-viewer')%] help" data-arg="http://fabwebtools.com/resources/rmovchan/reference-doc-2.xml"> </div>
+							</div>
+							<div role="tabpanel" class="tab-pane fade" id="tab-help"> 
+								<br/>
+								<div class="help">
+<p><strong>Fabula Project Builder</strong> is a tool for editing the source code of Fabula projects. Additionally, the user can enter/update the project description, preview/test the application, browse the project revision history and read the Fabula documentation.</p>
+
+<p>Fabula Project Builder has six tabs:</p>
+
+<ol>
+	<li>
+		<strong>Code </strong>- contains the code editor for the Fabula source and the links for editing the auxiliary source files (index.html, style.css and extension.js)
+	</li>
+	<li>
+		<strong>Details </strong>- contains a form for updating the project details (title and description)
+	</li>
+	<li>
+		<strong>Test </strong>- provides a frame for testing the application at different screen resolutions (Mobile, Tablet or Desktop)
+	</li>
+	<li>
+		<strong>History </strong>- displays the source revision history
+	</li>
+	<li>
+		<strong>Reference </strong>- allows the user to browse the Fabula documentation
+	</li>
+	<li>
+		<strong>Help </strong>- contains this information
+	</li>
+</ol>
+
+<p>
+	The code editor is &quot;aware&quot; of the Fabula program structure and offers active automatic code completion, folding and syntax highlighting. It has additional functions, and keyboard shortcuts, for Fabula source:
+</p>
+
+<ul>
+	<li>F9 - performs syntax/semantic validation of the source</li>
+	<li>Ctrl-S - validates and, unless errors were found, saves the source to the server, prompting the user for a description of the change</li>
+	<li>Ctrl-/ - comments/incomments the selection or current line</li>
+</ul>
+
+<p>Every time the user saves the source, a new revision is created and the comment entered when saving is added to the change log.</p>
+
+<p>The History tab displays the full revision history and lets the user browse the source of up to 25 previous revisions.</p>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="[%appletclass('common::error-box')%]"> </div>
+				</div>
+			</text>
+		</view>
+		<init>
+			<state>{}</state>
+			<actions>getdetails</actions>
+		</init>
+	</applet>
+	<applet name="code-editor">
+		<view id="id">
+			<text>
+<!-- 				<div> -->
+					<span class="popup-head"><a href="#"><span class="glyphicon glyphicon-info-sign"> </span></a>
+						<span class="popup-body">
+							<div class="container">
+								<div class="row"><div class="col-sm-4">Insert an empty line at current position</div><div class="col-sm-4">Shift-Enter</div></div>
+								<div class="row"><div class="col-sm-4">Select the whole content of the editor</div><div class="col-sm-4">Ctrl-A (PC), Cmd-A (Mac)</div></div>
+								<div class="row"><div class="col-sm-4">Delete the part of the line after the cursor</div><div class="col-sm-4">Ctrl-K (Mac)</div></div>
+								<div class="row"><div class="col-sm-4">Deletes the whole line under the cursor</div><div class="col-sm-4">Ctrl-D (PC), Cmd-D (Mac)</div></div>
+								<div class="row"><div class="col-sm-4">Undo the last change</div><div class="col-sm-4">Ctrl-Z (PC), Cmd-Z (Mac)</div></div>
+								<div class="row"><div class="col-sm-4">Redo the last undone change</div><div class="col-sm-4">Ctrl-Y (PC), Shift-Cmd-Z (Mac), Cmd-Y (Mac)</div></div>
+								<div class="row"><div class="col-sm-4">Undo the last change to the selection</div><div class="col-sm-4">Ctrl-U (PC), Cmd-U (Mac)</div></div>
+								<div class="row"><div class="col-sm-4">Redo the last change to the selection</div><div class="col-sm-4">Alt-U (PC), Shift-Cmd-U (Mac)</div></div>
+								<div class="row"><div class="col-sm-4">Move the cursor to the start of the document</div><div class="col-sm-4">Ctrl-Home (PC), Cmd-Up (Mac), Cmd-Home (Mac)</div></div>
+								<div class="row"><div class="col-sm-4">Move the cursor to the end of the document</div><div class="col-sm-4">Ctrl-End (PC), Cmd-End (Mac), Cmd-Down (Mac)</div></div>
+								<div class="row"><div class="col-sm-4">Move the cursor to the start of the line</div><div class="col-sm-4">Alt-Left (PC), Ctrl-A (Mac)</div></div>
+								<div class="row"><div class="col-sm-4">Move the cursor to the end of the line</div><div class="col-sm-4">Alt-Right (PC), Ctrl-E (Mac)</div></div>
+								<div class="row"><div class="col-sm-4">Move the cursor up one line</div><div class="col-sm-4">Up, Ctrl-P (Mac)</div></div>
+								<div class="row"><div class="col-sm-4">Move down one line</div><div class="col-sm-4">Down, Ctrl-N (Mac)</div></div>
+								<div class="row"><div class="col-sm-4">Move the cursor up one screen</div><div class="col-sm-4">PageUp, Shift-Ctrl-V (Mac)</div></div>
+								<div class="row"><div class="col-sm-4">Move the cursor down one screen</div><div class="col-sm-4">PageDown, Ctrl-V (Mac)</div></div>
+								<div class="row"><div class="col-sm-4">Move the cursor to the start of the previous word</div><div class="col-sm-4">Alt-B (Mac)</div></div>
+								<div class="row"><div class="col-sm-4">Move the cursor to the end of the next word</div><div class="col-sm-4">Alt-F (Mac)</div></div>
+								<div class="row"><div class="col-sm-4">Move to the left of the group before the cursor</div><div class="col-sm-4">Ctrl-Left (PC), Alt-Left (Mac)</div></div>
+								<div class="row"><div class="col-sm-4">Move to the right of the group after the cursor</div><div class="col-sm-4">Ctrl-Right (PC), Alt-Right (Mac)</div></div>
+								<div class="row"><div class="col-sm-4">Delete up to the start of the word before the cursor</div><div class="col-sm-4">Alt-Backspace (Mac)</div></div>
+								<div class="row"><div class="col-sm-4">Delete up to the end of the word after the cursor</div><div class="col-sm-4">Alt-D (Mac)</div></div>
+								<div class="row"><div class="col-sm-4">Delete to the left of the group before the cursor</div><div class="col-sm-4">Ctrl-Backspace (PC), Alt-Backspace (Mac)</div></div>
+								<div class="row"><div class="col-sm-4">Delete to the start of the group after the cursor</div><div class="col-sm-4">Ctrl-Delete (PC), Ctrl-Alt-Backspace (Mac), Alt-Delete (Mac)</div></div>
+								<div class="row"><div class="col-sm-4">Swap the characters before and after the cursor</div><div class="col-sm-4">Ctrl-T (Mac)</div></div>
+								<div class="row"><div class="col-sm-4">Save</div><div class="col-sm-4">Ctrl-S (PC), Cmd-S (Mac)</div></div>
+								<div class="row"><div class="col-sm-4">Find</div><div class="col-sm-4">Ctrl-F (PC), Cmd-F (Mac)</div></div>
+								<div class="row"><div class="col-sm-4">Find next</div><div class="col-sm-4">Ctrl-G (PC), Cmd-G (Mac)</div></div>
+								<div class="row"><div class="col-sm-4">Find previous</div><div class="col-sm-4">Shift-Ctrl-G (PC), Shift-Cmd-G (Mac)</div></div>
+								<div class="row"><div class="col-sm-4">Replace</div><div class="col-sm-4">Shift-Ctrl-F (PC), Cmd-Alt-F (Mac)</div></div>
+								<div class="row"><div class="col-sm-4">Replace all occurrences</div><div class="col-sm-4">Shift-Ctrl-R (PC), Shift-Cmd-Alt-F (Mac)</div></div>
+								<div class="row"><div class="col-sm-4">Validate code</div><div class="col-sm-4">F9</div></div>
+								<div class="row"><div class="col-sm-4">Toggle full screen mode</div><div class="col-sm-4">F11</div></div>
+								<div class="row"><div class="col-sm-4">Toggle comment</div><div class="col-sm-4">Ctrl-/</div></div>
+								<div class="row"><div class="col-sm-4">Auto-completion</div><div class="col-sm-4">Ctrl-Space</div></div>
+							</div>
+						</span>
+					</span>
+					<textarea rows="12" cols="80" style="display:none;" class="applet-code-mirror" name="source">
+					</textarea>
+					<span class="[%appletclass('status-message')%]" data-arg="[%id%]-editor">
+<!-- 						<span class="creator"><a href="http://codemirror.net/" target="_blank">CodeMirror</a> is Copyright [%copy%] 2014 by <a href="mailto: marijnh@gmail.com4">Marijn Haverbeke</a> and others</span> -->
+					</span>
+					<br/>
+					<div>
+						<a href="http://fabwebtools.com/projects/rmovchan/htmleditor/v2/index.html?creator=[%creator%]&amp;username=[%username%]&amp;project=[%project%]&amp;version=[%version%]&amp;file=index.html" target="_blank">
+							<span class="glyphicons glyphicons-pencil"> 
+							</span>index.html
+						</a>[%nbsp%][%nbsp%]
+						<a href="http://fabwebtools.com/projects/rmovchan/csseditor/v2/index.html?creator=[%creator%]&amp;username=[%username%]&amp;project=[%project%]&amp;version=[%version%]&amp;file=style.css" target="_blank">
+							<span class="glyphicons glyphicons-pencil"> 
+							</span>style.css
+						</a>[%nbsp%][%nbsp%]
+						<a href="http://fabwebtools.com/projects/rmovchan/jseditor/v2/index.html?creator=[%creator%]&amp;username=[%username%]&amp;project=[%project%]&amp;version=[%version%]&amp;file=extension.js" target="_blank">
+							<span class="glyphicons glyphicons-pencil"> 
+							</span>extension.js
+						</a>[%nbsp%]
+					</div>
+					<!--<hr/>
+					<h4>Validation Report</h4>-->
+					<div id="[%id%]-report" class="[%appletclass('report')%]"> </div>
+<!-- 				</div> -->
+			</text>
+		</view>
+	</applet>
+	<applet name="report">
+		<model state="state">
+			<string/>
+		</model>
+		<view>
+			state
+		</view>
+		<init content="content">
+			<state>content</state>
+		</init>
+		<proceed>
+			<on input="input">
+				<string/>
+			</on>
+			<state>input</state>
+		</proceed>
+		<receive data="data">
+			<from channel="report">data</from>
+		</receive>
+	</applet>
+	<applet name="code-mirror"/>
+	<applet name="status-message">
+		<model state="state">
+			<string/>
+		</model>
+		<view>
+			state
+		</view>
+		<init content="content">
+			<state>content</state>
+		</init>
+		<proceed>
+			<on input="input">
+				<string/>
+			</on>
+			<state>input</state>
+		</proceed>
+		<receive data="data">
+			<from channel="status-message">data</from>
+		</receive>
+	</applet>
+	<applet name="test">
+		<view>
+			<text>
+				<h3>Preview</h3>
+				<div class="applet-play right" id="play"> </div>
+				<span class="[%appletclass('parameters')%]"> </span>[%nbsp%]
+				<span class="[%appletclass('refresh')%]"> </span>[%nbsp%]
+				<span class="[%appletclass('choose-size')%]"> </span>
+				<br/><br/>
+				<div class="[%appletclass('preview')%]"> </div>
+				<br/>
+			</text>
+		</view>
+	</applet>
+	<applet name="preview">
+		<model state="state">
+			<com>
+				<prop name="parameters">
+					<string/>
+				</prop>
+				<prop name="size">
+					<type name="Size"/>
+				</prop>
+				<prop name="status">
+					<var>
+						<prop name="on"/>
+						<prop name="off"/>
+					</var>
+				</prop>
+			</com>
+		</model>
+		<view>
+			<calc>
+				<text>
+					<iframe src="http://fabwebtools.com/projects/[%creator%]/[%project%]/v[%version%]/index.html?[%state.parameters%]" height="600" width="[%width%]"> </iframe>
+				</text>
+				<where>
+					<any>
+						<all>
+							<is>state.size.mobile</is>
+							<def var="width">400</def>
+						</all>
+						<all>
+							<is>state.size.tablet</is>
+							<def var="width">768</def>
+						</all>
+						<all>
+							<is>state.size.desktop</is>
+							<def var="width">1000</def>
+						</all>
+					</any>
+				</where>
+				<where>
+					<is>state.status.on</is>
+				</where>
+			</calc>
+		</view>
+		<init>
+			<state>{parameters: "", size: {desktop:}, status: {off:}}</state>
+		</init>
+		<proceed>
+			<on input="input">
+				<var>
+					<prop name="parameters">
+						<string/>
+					</prop>
+					<prop name="size">
+						<type name="Size"/>
+					</prop>
+					<prop name="refresh"/>
+				</var>
+			</on>
+			<state>
+				<calc>
+					newstate
+					<where>
+						<any>
+							<all>
+								<is>input.parameters</is>
+								<def var="newstate">
+									<alter>state
+										<set prop="parameters">input.parameters</set>
+									</alter>
+								</def>
+							</all>
+							<all>
+								<is>input.size</is>
+								<def var="newstate">
+									<alter>state
+										<set prop="size">input.size</set>
+									</alter>
+								</def>
+							</all>
+							<def var="newstate">
+								<alter>state
+									<set prop="status">{on:}</set>
+								</alter>
+							</def>
+						</any>
+					</where>
+				</calc>
+			</state>
+		</proceed>
+		<receive data="data">
+			<from channel="parameters">{parameters: data}</from>
+			<from channel="set-size">{size: data}</from>
+			<from channel="refresh">{refresh:}</from>
+		</receive>
+	</applet>
+	<applet name="parameters">
+		<model state="state">
+			<string/>
+		</model>
+		<view id="id">
+			<text>
+				<label for="[%id%]-params">Parameters: [%nbsp%]</label>
+				<input id="[%id%]-params" type="text" placeholder="parameter=value&amp; ... &amp;parameter=value" size="100" value="[%state%]"/>
+			</text>
+		</view>
+		<init>
+			<state>""</state>
+		</init>
+		<proceed>
+			<on input="input">
+				<string/>
+			</on>
+			<state>input</state>
+		</proceed>
+		<events data="data">
+			<change>
+				<each>
+					<list>
+						<send channel="parameters">data</send>
+						<take>data</take>
+					</list>
+				</each>
+			</change>
+		</events>
+	</applet>
+	<applet name="choose-size">
+		<view>
+			<text>
+				<form>
+					<strong>Size:</strong>[%nbsp%]
+					<input type="radio" name="size" data-toggle="tooltip" data-placement="top" title="Mobile" value="mobile">[%nbsp%]
+						<span class="glyphicons glyphicons-iphone">
+						</span>
+					</input>[%nbsp%]
+					<input type="radio" name="size" data-toggle="tooltip" data-placement="top" title="Tablet" value="tablet">[%nbsp%]
+						<span class="glyphicons glyphicons-ipad">
+						</span>
+					</input>[%nbsp%]
+					<input type="radio" name="size" data-toggle="tooltip" data-placement="top" title="Desktop" value="desktop" checked="checked">[%nbsp%]
+						<span class="glyphicons glyphicons-display">
+						</span>
+					</input>[%nbsp%]
+				</form>
+			</text>
+		</view>
+		<events data="data">
+			<change>
+				<calc><send channel="set-size">input</send>
+					<where>
+						<any>
+							<all>
+								<is>data = "mobile"</is>
+								<def var="input">{mobile:}</def>
+							</all>
+							<all>
+								<is>data = "tablet"</is>
+								<def var="input">{tablet:}</def>
+							</all>
+							<all>
+								<is>data = "desktop"</is>
+								<def var="input">{desktop:}</def>
+							</all>
+						</any>
+					</where>
+				</calc>
+			</change>
+		</events>
+	</applet>
+	<applet name="refresh">
+		<view>
+			<text>
+				<button class="btn btn-default" data-toggle="tooltip" data-placement="top" title="Refresh">
+					<span class="glyphicon glyphicon-refresh"></span>
+				</button>
+			</text>
+		</view>
+		<events>
+			<click>
+				<send channel="refresh">{}</send>
+			</click>
+		</events>
+	</applet>
+	<applet name="details-form">
+		<model state="state">
+			<var>
+				<prop name="undefined"/>
+				<prop name="defined">
+					<type name="ProjectInfo"/>
+				</prop>
+			</var>
+		</model>
+		<view id="id">
+			<calc>content
+				<where>
+					<any>
+						<all>
+							<is>state.undefined</is>
+							<def var="content">""</def>
+						</all>
+						<def var="content">
+							<calc>
+							<text>
+								<h3>Project details</h3>
+								<form class="form-horizontal" method="POST" id="details-form" name="[%id%]-form">
+									<div class="form-group">
+										<label for="[%id%]-input-name" class="col-md-2 control-label">Name:</label>
+										<div class="col-md-4">
+											<input type="text" size="30" class="form-control" id="[%id%]-input-name" name="projectname" readonly="readonly" value="[%state.defined.projectname%]"/>
+										</div>
+										<label for="[%id%]-input-version" class="col-md-2 control-label">Version:</label>
+										<div class="col-md-4">
+											<input type="text" size="30" class="form-control" id="[%id%]-input-version" name="version" readonly="readonly" value="[%state.defined.version%]"/>
+										</div>
+									</div>
+									<div class="form-group">
+										<label for="[%id%]-input-title" class="col-md-2 control-label">Title:</label>
+										<div class="col-md-10">
+											<input type="text" required="required" class="form-control" id="[%id%]-input-title" name="projecttitle" placeholder="Project title" value="[%state.defined.title%]"/>
+										</div>
+									</div>
+									<div class="form-group">
+										<label for="[%id%]-input-desc" class="col-md-2 control-label">Description:</label>
+										<div class="col-md-10">
+											<textarea rows="3" class="form-control [%appletclass('common::wysiwyg-html-editor')%]" name="description" placeholder="Project description">
+												[%state.defined.description%]
+											</textarea>
+										</div>
+									</div>
+									<div class="form-group">
+										<label for="[%id%]-input-category" class="col-md-2 control-label">Category:</label>
+										<div class="col-md-4">
+											<input type="text" readonly="readonly" class="form-control" id="[%id%]-input-category" name="category" placeholder="Category" value="[%state.defined.category%]"/>
+										</div>
+										<div class="col-md-3">
+											[%radio%]
+										</div>
+									</div>
+									<div class="form-group">
+										<div class="col-md-3">
+											<input type="submit" class="btn btn-primary" id="[%id%]-update" value="Update"/>
+										</div>
+									</div>
+								</form>
+							</text>
+								<where>
+									<any>
+										<all>
+											<is>state.defined.access.public</is>
+											<def var="radio">
+												<text>
+													<input type="radio" id="[%id%]-input-public" name="access" value="public" checked="checked">Public</input>
+													<input type="radio" id="[%id%]-input-private" name="access" value="private">Private</input>
+												</text>
+											</def>
+										</all>
+										<all>
+											<is>state.defined.access.private</is>
+											<def var="radio">
+												<text>
+													<input type="radio" id="[%id%]-input-public" name="access" value="public">Public</input>
+													<input type="radio" id="[%id%]-input-private" name="access" value="private" checked="checked">Private</input>
+												</text>
+											</def>
+										</all>
+									</any>
+								</where>
+							</calc>
+						</def>
+					</any>
+				</where>
+			</calc>
+		</view>
+		<init>
+			<state>{undefined:}</state>
+		</init>
+		<proceed>
+			<on input="input">
+				<type name="ProjectInfo"/>
+			</on>
+			<state>{defined: input}</state>
+			<after>
+				<setform>
+					<url>"http://fabwebtools.com/backend/1/updateproj.php"</url>
+					<formname>'details-form'</formname>
+					<submit>
+						<each>
+							<noitems>
+								<action/>
+							</noitems>
+						</each>
+					</submit>
+					<success result="result">
+						<calc>action
+							<where>
+								<any>
+									<all>
+										<is>toLowerCase(getName(root)) = 'error'</is>
+										<def var="action">
+											<send channel="common::errors">getText(root)</send>
+										</def>
+									</all>
+<!-- 									<def var="action">
+										<send channel="notify">getText(root)</send>
+									</def> -->
+								</any>
+							</where>
+							<where>
+								<def var="root">parseText(result)</def>
+							</where>
+						</calc>
+					</success>
+					<error message="message">
+						<send channel="common::errors">message</send>
+					</error>
+				</setform>
+			</after>
+		</proceed>
+		<receive data="data">
+			<from channel="project-info">data</from>
+		</receive>
+	</applet>
+	<applet name="history">
+		<model state="state">
+			<com/>
+		</model>
+		<view>
+			<text>
+				<h3>Revisions</h3>
+				<div class="[%appletclass('tableviewer::table')%]" data-arg="revisions">...</div>
+			</text>
+		</view>
+		<init>
+			<state>{}</state>
+			<actions>gethistory</actions>
+		</init>
+		<proceed>
+			<on input="input">
+				<com/>
+			</on>
+			<state>state</state>
+			<after>gethistory</after>
+		</proceed>
+		<receive data="data">
+			<from channel="history-refresh">data</from>
+		</receive>
+	</applet>
+	<applet name="play">
+		<model state="state">
+			<string/>
+		</model>
+		<view>
+			<text>
+				<a href="http://fabwebtools.com/projects/[%creator%]/[%project%]/v[%version%]/index.html?[%state%]" target="_blank" data-toggle="tooltip" data-placement="left" title="Launch">
+					<span class="glyphicons glyphicons-new-window x2"></span>
+				</a>
+			</text>
+		</view>
+		<init>
+			<state>""</state>
+		</init>
+		<proceed>
+			<on input="input">
+				<string/>
+			</on>
+			<state>input</state>
+		</proceed>
+		<receive data="data">
+			<from channel="parameters">data</from>
+		</receive>
+	</applet>
+	<applet name="donate">
+		<view>
+			<text>
+				<small><i>If you wish to support further development of FWT, please</i></small>[%nbsp%]
+				<form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_top">
+					<input type="hidden" name="cmd" value="_s-xclick"/>
+					<input type="hidden" name="encrypted" value="-----BEGIN PKCS7-----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-----END PKCS7-----
+																 "/>
+					<input type="image" src="https://www.paypalobjects.com/en_AU/i/btn/btn_donate_SM.gif" border="0" name="submit" alt="PayPal — The safer, easier way to pay online."/>
+					<img alt="" border="0" src="https://www.paypalobjects.com/en_AU/i/scr/pixel.gif" width="1" height="1"/>
+				</form>
+			</text>
+		</view>
+	</applet>
+</library>
